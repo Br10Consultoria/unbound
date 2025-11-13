@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Fonte dos binários pré-compilados
+REPO_BASE="https://raw.githubusercontent.com/Br10Consultoria/unbound/monitoring"
+ARCH="$(dpkg --print-architecture)"
+
 echo "=== Instalando Go (necessário para compilar o unbound_exporter) ==="
 apt-get update -y
 apt-get install -y golang

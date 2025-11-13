@@ -1,17 +1,13 @@
 [Unit]
 Description=Unbound Exporter for Prometheus
-After=network.target
+After=network.target unbound.service
 
 [Service]
 Type=simple
-User=root
 ExecStart=/usr/local/bin/unbound_exporter \
-  --web.listen-address="0.0.0.0:9167" \
-  --unbound.host="127.0.0.1" \
-  --unbound.port="8953" \
-  --unbound.timeout="5s"
-
+    --web.listen-address=0.0.0.0:9167
 Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

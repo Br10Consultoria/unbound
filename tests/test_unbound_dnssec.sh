@@ -48,8 +48,8 @@ fi
 echo -e "\n${YELLOW}3) Teste DNSSEC (domínio assinado - cloudflare.com)${NC}"
 dig @"${DNS_IP}" cloudflare.com A +dnssec +multi
 
-FLAGS=$(dig @"${DNS_IP}" cloudflare.com A +dnssec +multi +noall +answer +stats 2>/dev/null \
-  | sed -n 's/;; flags: \(.*\); QUERY.*/\1/p')
+FLAGS=$(dig @"${DNS_IP}" cloudflare.com A +dnssec +multi +noall +comments 2>/dev/null \
+  | sed -n 's/;; flags: \(.*\);.*/\1/p')
 
 if echo "$FLAGS" | grep -q "ad"; then
   echo -e "${GREEN}[OK] DNSSEC: flag AD presente para cloudflare.com.${NC}"

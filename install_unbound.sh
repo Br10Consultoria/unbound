@@ -45,9 +45,9 @@ check_port_53() {
 
   local PORT_CHECK=""
   if command -v netstat >/dev/null 2>&1; then
-    PORT_CHECK=$(netstat -tulpn 2>/dev/null | grep ":53 ")
+    PORT_CHECK=$(netstat -tulpn 2>/dev/null | grep ":53 " || true)
   elif command -v ss >/dev/null 2>&1; then
-    PORT_CHECK=$(ss -tulpn 2>/dev/null | grep ":53 ")
+    PORT_CHECK=$(ss -tulpn 2>/dev/null | grep ":53 " || true)
   fi
 
   if [ -n "$PORT_CHECK" ]; then
@@ -239,7 +239,7 @@ remote-control:
     control-enable: yes
     control-interface: 127.0.0.1
     control-port: 953
-    control-use-cert: "no"
+    control-use-cert: "yes"
     control-interface: /run/unbound.ctl
 EOF
 

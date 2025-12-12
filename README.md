@@ -18,13 +18,7 @@ install_unbound.sh → Instalação base + estrutura do Unbound
 tuning_unbound.sh → Tuning automático (CPU, RAM, slab, cache)
 configure_network_blocks.sh → Interativo apenas para IPv4/IPv6 (ACLs)
 
-apos baixar os scripts executar os comandos abaixo caso apresente algum erro:
 
-sudo apt install -y dos2unix
-dos2unix setup_unbound.sh
-dos2unix install_unbound.sh
-dos2unix tuning_unbound.sh
-dos2unix configure_network_blocks.sh
 ---
 
 # 🛠 RECURSOS PRINCIPAIS

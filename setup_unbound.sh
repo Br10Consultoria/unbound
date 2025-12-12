@@ -18,7 +18,6 @@ REQUIRED_PACKAGES=(
   ca-certificates
   dnsutils
   net-tools
-  systemd
 )
 
 check_root() {
@@ -53,6 +52,11 @@ run_step() {
   echo -e "\n${BLUE}==========================================================${NC}"
   echo -e "${YELLOW}>>> $title${NC}"
   echo -e "${BLUE}==========================================================${NC}\n"
+
+  if [ ! -f "$BASE_DIR/$script" ]; then
+    echo -e "${RED}ERRO: Script não encontrado: $script${NC}"
+    exit 1
+  fi
 
   bash "$BASE_DIR/$script"
 }

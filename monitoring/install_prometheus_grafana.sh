@@ -1,6 +1,7 @@
 #!/bin/bash
-# Instala Prometheus, node_exporter (pacote Debian) e Grafana
-# e configura o textfile collector para ler /var/lib/node_exporter/unbound.prom
+# Instala Prometheus, node_exporter e Grafana
+# Compatível com unbound_exporter (porta 9167)
+# Cria jobs automaticamente no Prometheus
 
 set -e
 
@@ -12,17 +13,17 @@ NC='\033[0m'
 
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Este script deve ser executado como root.${NC}"
-  echo -e "Use: ${YELLOW}sudo $0${NC}"
   exit 1
 fi
 
 echo -e "${BLUE}=== Atualizando repositórios...${NC}"
 apt-get update -y
 
-echo -e "${BLUE}=== Instalando Prometheus + node_exporter + Grafana...${NC}"
-apt-get install -y prometheus prometheus-node-exporter apt-transport-https software-properties-common wget gnupg2
+echo -e "${BLUE}=== Instalando Prometheus + node_exporter + dependências...${NC}"
+apt-get install -y prometheus prometheus-node-exporter \
+  apt-transport-https software-properties-common wget gnupg2 curl jq
 
-# Repositório Grafana (oficial)
+# ---------- Grafana ----------
 if [ ! -f /etc/apt/sources.list.d/grafana.list ]; then
   echo -e "${BLUE}=== Adicionando repositório Grafana...${NC}"
   wget -q -O - https://packages.grafana.com/gpg.key | gpg --dearmor -o /usr/share/keyrings/grafana.gpg
@@ -33,28 +34,12 @@ fi
 
 apt-get install -y grafana
 
-echo -e "${BLUE}=== Configurando node_exporter com textfile collector...${NC}"
-
-# Diretório para métricas textfile (unbound_metrics.sh usa este)
-mkdir -p /var/lib/node_exporter
-chown -R prometheus:prometheus /var/lib/node_exporter || true
-
-# Ajusta argumentos do serviço prometheus-node-exporter
-NODE_EXPORTER_DEFAULT="/etc/default/prometheus-node-exporter"
-
-if grep -q "collector.textfile" "$NODE_EXPORTER_DEFAULT" 2>/dev/null; then
-  echo -e "${YELLOW}collector.textfile já configurado em $NODE_EXPORTER_DEFAULT.${NC}"
-else
-  echo -e "${BLUE}Adicionando argumentos do textfile collector em $NODE_EXPORTER_DEFAULT...${NC}"
-  cat << 'EOF' > "$NODE_EXPORTER_DEFAULT"
-ARGS="--collector.textfile --collector.textfile.directory=/var/lib/node_exporter"
-EOF
-fi
-
-echo -e "${BLUE}=== Ajustando scrape do Prometheus para node_exporter (localhost:9100)...${NC}"
+# ---------- Prometheus config ----------
 PROM_CONFIG="/etc/prometheus/prometheus.yml"
 
-# Adiciona job se não existir
+echo -e "${BLUE}=== Ajustando scrape do Prometheus ===${NC}"
+
+# Job node_exporter
 if ! grep -q "job_name: 'node_exporter'" "$PROM_CONFIG"; then
   cat << 'EOF' >> "$PROM_CONFIG"
 
@@ -64,17 +49,35 @@ if ! grep -q "job_name: 'node_exporter'" "$PROM_CONFIG"; then
 EOF
 fi
 
-echo -e "${BLUE}=== Habilitando e iniciando serviços...${NC}"
-systemctl daemon-reload
+# Job unbound_exporter
+if ! grep -q "job_name: 'unbound'" "$PROM_CONFIG"; then
+  cat << 'EOF' >> "$PROM_CONFIG"
 
+  - job_name: 'unbound'
+    static_configs:
+      - targets: ['localhost:9167']
+EOF
+fi
+
+echo -e "${BLUE}=== Reiniciando serviços ===${NC}"
+systemctl daemon-reload
 systemctl enable --now prometheus
 systemctl enable --now prometheus-node-exporter
 systemctl enable --now grafana-server
 
-sleep 3
+sleep 5
 
+# ---------- Validação ----------
+echo -e "${BLUE}=== Validando target unbound_exporter no Prometheus ===${NC}"
+if curl -s http://localhost:9090/api/v1/targets | jq -r '.data.activeTargets[].labels.job' | grep -q '^unbound$'; then
+  echo -e "${GREEN}Target unbound_exporter registrado com sucesso.${NC}"
+else
+  echo -e "${YELLOW}Aviso: target unbound_exporter ainda não visível.${NC}"
+fi
+
+echo
 echo -e "${GREEN}Instalação concluída.${NC}"
-echo -e "Prometheus escutando em: ${BLUE}http://<IP_DO_SERVIDOR>:9090${NC}"
-echo -e "node_exporter em:         ${BLUE}http://<IP_DO_SERVIDOR>:9100/metrics${NC}"
-echo -e "Grafana em:               ${BLUE}http://<IP_DO_SERVIDOR>:3000${NC} (login padrão: admin / admin)"
-echo -e "Certifique-se que o script ${YELLOW}/usr/local/bin/unbound_metrics.sh${NC} está no cron para alimentar as métricas."
+echo -e "Prometheus:       ${BLUE}http://<IP>:9090${NC}"
+echo -e "node_exporter:    ${BLUE}http://<IP>:9100/metrics${NC}"
+echo -e "unbound_exporter: ${BLUE}http://<IP>:9167/metrics${NC}"
+echo -e "Grafana:          ${BLUE}http://<IP>:3000${NC} (admin / admin)"
